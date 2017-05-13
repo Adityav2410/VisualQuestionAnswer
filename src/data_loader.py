@@ -8,6 +8,15 @@ import numpy as np
 import pprint
 import pickle
 from itertools import cycle
+import vgg16.vgg16 as vgg_model
+import tensorflow as tf
+import skimage
+import skimage.io
+import skimage.transform
+import os 
+import random
+import re
+import time
 
 def load_questions_answers(data_dir):
 	
@@ -178,57 +187,88 @@ def make_questions_vocab(questions, answers, answer_vocab):
 
 	return qw_vocab, max_question_length
 
+def getImage(datapath, imageID):
+	name_3 = str(imageID)
+	name_2 = '0' * (12-len(name_3))
+	name_1 = 'COCO_train2014_'
+	fileName = name_1 + name_2 + name_3 + '.jpg'
+	filepath = join(datapath,fileName)
+	img = skimage.io.imread(filepath)
+	return(img)
 
-def getNextBatch(imageDict, qa_data, vocab, batch_Size):
+def getImageFeatures(sess, vgg, images ,img ):
+    # load image
+    img = img / 255.0
+    assert (0 <= img).all() and (img <= 1.0).all()
+    # print "Original Image Shape: ", img.shape
+    # we crop image from center
+    short_edge = min(img.shape[:2])
+    yy = int((img.shape[0] - short_edge) / 2)
+    xx = int((img.shape[1] - short_edge) / 2)
+    crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
+    # resize to 224, 224
+    resized_img = skimage.transform.resize(crop_img, (224, 224))
+    img_reshape = 	resized_img.reshape((1, 224, 224, 3))
+    img_feature = sess.run(vgg.pool4, feed_dict={images:img_reshape})
+    return(img_feature)
+
+
+def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datapath, batchSize):
 	
 	currIndex = 0;
-	wordVectorSize = len(vocab.keys())
+	questionVocabSize = len(question_vocab.keys())
+	answerVocabSize = len(answer_vocab.keys())
 	question_length = qa_data[0]['question'].shape[0]
-	quest_oneHot = np.zeros((wordVectorSize,question_length))
-	ans_oneHot = np.zeros(wordVectorSize)
-	batch_quest = np.zeros((0,question_length,wordVectorSize))
-	batch_ans   = np.zeros((0,wordVectorSize))
-	return_id = []
-	failCount = 0
 
-	print("Generating questions")
+	quest_oneHot = np.zeros((1,questionVocabSize,question_length))
+	ans_oneHot = np.zeros((1,answerVocabSize))
+	batch_quest = np.zeros((0,question_length,questionVocabSize))
+	batch_ans   = np.zeros((0,answerVocabSize))
+	batchFeatures = np.zeros((0,14,14,512))
+	batch_id = []
+
 	for iter in cycle(qa_data):
 		qa_id    =  iter['image_id']
 		qa_ans   =  iter['answer']
 		qa_quest =  iter['question']
-		
 
-		print("Checking if the question is valid or not")
-		if qa_id not in imageDict.keys(): 		# Invalid Question
-			print("Invalid question. Skipping this question id", qa_id)
-			failCount = failCount + 1
-			if failCount == 10:
-				failCount = 0
-				break;
-			continue
-		else: 									# Valid Question 
-			print("Valid Question")
-			# Convert the question and answer in One Hot format
-			currIndex = currIndex + 1
-			for i in qa_quest.shape[0]:
-				quest_oneHot[ qa_quest[i],i ] = 1
-			ans_oneHot[qa_ans] = 1
+		# Checking if the question is for a valid image or not
+		img = getImage(datapath, qa_id)
+		if(img.shape[2] < 3):
+			continue		
 
-			print("Generating question index: ", currIndex)
+		batch_id.append(str(qa_id))
+		# Image is valid - Get features of the image
+		imgFeatures = getImageFeatures(sess,vgg, images, img)
+		batchFeatures = np.concatenate((batchFeatures,imgFeatures),0)
 
-			# Convert the question and answer in batch format
-			quest_oneHot = np.reshape(quest_oneHot,(1,quest_oneHot.shape))
-			ans_oneHot = np.reshape(ans_oneHot,(1,ans.shape))
+		# Convert the question and answer in One Hot format
+		currIndex = currIndex + 1
 
-			# Concat all the question in the batch
-			batch_quest = np.concatenate((batch_quest,quest_oneHot),0)
-			batch_ans   = np.concatenate((batch_ans  ,ans_oneHot),0)
+		ans_oneHot = np.zeros((1,answerVocabSize))
+		quest_oneHot = np.zeros((1,question_length,questionVocabSize))
+		for i in range(qa_quest.shape[0]):
+			quest_oneHot[ 0,i,int(qa_quest[i]) ] = 1
+		ans_oneHot[0,qa_ans] = 1
 
-			if currIndex == batchSize:
-				return_ques = batch_quest
-				return_ans  = batch_ans
-				return_id   = batch_id
-				batch_quest = np.zeros((0,question_length,wordVectorSize))
-				batch_ans   = np.zeros((0,wordVectorSize))
-				currIndex = 0
-				yield np.copy(return_quest),np.copy(return_ans),np.copy(return_id)
+		# Concat all the question in the batch
+		batch_quest = np.concatenate((batch_quest,quest_oneHot),0)
+		batch_ans   = np.concatenate((batch_ans  ,ans_oneHot),0)
+
+		if currIndex == batchSize:
+			yield np.copy(batch_quest),np.copy(batch_ans),batch_id[:],np.copy(batchFeatures) 
+			batch_id = []
+			batch_quest 	= np.zeros((0,question_length,questionVocabSize,))
+			batch_ans   	= np.zeros((0,answerVocabSize))
+			batchFeatures 	= np.zeros((0,14,14,512))
+			currIndex 		= 0
+
+
+
+def getVGGhandle():
+	sess = tf.Session()
+	images = tf.placeholder("float", [None, 224, 224, 3])
+	vgg = vgg_model.Vgg16()
+	with tf.name_scope("content_vgg"):
+		vgg.build(images)
+	return([sess,vgg,images])

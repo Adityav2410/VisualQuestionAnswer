@@ -26,22 +26,19 @@ def load_image(path):
     resized_img = skimage.transform.resize(crop_img, (224, 224))
     return resized_img
 
-def load_Files(dirpath,fileNames,expr):
+def load_Files(dirpath,fileNames):
 	# List to store all the image	
 	batchList = np.zeros((0,224,224,3))
-	batchID = []
 	# traverse through every file in the fileList
 	for fileName in fileNames:
 		filepath = os.path.join(dirpath, fileName)				# get the actual path of the files
-		img = 			load_image(filepath)				# load the file
+		img = 	load_image(filepath)				# load the file
 		try:
 			img_reshape = 	img.reshape((1, 224, 224, 3))
-			batchID.append(expr.search(fileName).group(2))
 			batchList = np.concatenate((batchList, img_reshape), 0)	# prepare the final list - with all the images
 		except ValueError:
 			print("Cannot reshape image:\t",fileName, "\t Image shape:",img.shape)
-			
-	return(batchList,batchID)											# return the numpy array with all the images in the batch
+	return(batchList)											# return the numpy array with all the images in the batch
 
 
 def getImageFeatures(sess,vgg,images,dirpath,batchSize = 100,numImages = -1):
