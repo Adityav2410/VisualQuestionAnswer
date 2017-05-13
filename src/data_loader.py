@@ -7,6 +7,7 @@ import re
 import numpy as np
 import pprint
 import pickle
+from itertools import cycle
 
 def load_questions_answers(data_dir):
 	
@@ -178,12 +179,56 @@ def make_questions_vocab(questions, answers, answer_vocab):
 	return qw_vocab, max_question_length
 
 
-def load_fc7_features(data_dir, split):
-	import h5py
-	fc7_features = None
-	image_id_list = None
-	with h5py.File( join( data_dir, (split + '_fc7.h5')),'r') as hf:
-		fc7_features = np.array(hf.get('fc7_features'))
-	with h5py.File( join( data_dir, (split + '_image_id_list.h5')),'r') as hf:
-		image_id_list = np.array(hf.get('image_id_list'))
-	return fc7_features, image_id_list
+def getNextBatch(imageDict, qa_data, vocab, batch_Size):
+	
+	currIndex = 0;
+	wordVectorSize = len(vocab.keys())
+	question_length = qa_data[0]['question'].shape[0]
+	quest_oneHot = np.zeros((wordVectorSize,question_length))
+	ans_oneHot = np.zeros(wordVectorSize)
+	batch_quest = np.zeros((0,question_length,wordVectorSize))
+	batch_ans   = np.zeros((0,wordVectorSize))
+	return_id = []
+	failCount = 0
+
+	print("Generating questions")
+	for iter in cycle(qa_data):
+		qa_id    =  iter['image_id']
+		qa_ans   =  iter['answer']
+		qa_quest =  iter['question']
+		
+
+		print("Checking if the question is valid or not")
+		if qa_id not in imageDict.keys(): 		# Invalid Question
+			print("Invalid question. Skipping this question id", qa_id)
+			failCount = failCount + 1
+			if failCount == 10:
+				failCount = 0
+				break;
+			continue
+		else: 									# Valid Question 
+			print("Valid Question")
+			# Convert the question and answer in One Hot format
+			currIndex = currIndex + 1
+			for i in qa_quest.shape[0]:
+				quest_oneHot[ qa_quest[i],i ] = 1
+			ans_oneHot[qa_ans] = 1
+
+			print("Generating question index: ", currIndex)
+
+			# Convert the question and answer in batch format
+			quest_oneHot = np.reshape(quest_oneHot,(1,quest_oneHot.shape))
+			ans_oneHot = np.reshape(ans_oneHot,(1,ans.shape))
+
+			# Concat all the question in the batch
+			batch_quest = np.concatenate((batch_quest,quest_oneHot),0)
+			batch_ans   = np.concatenate((batch_ans  ,ans_oneHot),0)
+
+			if currIndex == batchSize:
+				return_ques = batch_quest
+				return_ans  = batch_ans
+				return_id   = batch_id
+				batch_quest = np.zeros((0,question_length,wordVectorSize))
+				batch_ans   = np.zeros((0,wordVectorSize))
+				currIndex = 0
+				yield np.copy(return_quest),np.copy(return_ans),np.copy(return_id)
