@@ -1,3 +1,7 @@
+
+# source of code 
+# https://github.com/machrisaa/tensorflow-vgg/blob/master/vgg16.py
+
 import inspect
 import os
 
