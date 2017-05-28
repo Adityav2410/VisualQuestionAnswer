@@ -1,4 +1,4 @@
-# The code has been copied from the github account of Paarth Neekhara
+# The code for parsing the question answers has been copied from the github account of Paarth Neekhara. However they have been modified a bit for using as per our specification
 # https://github.com/paarthneekhara/neural-vqa-tensorflow
 import json
 import argparse
@@ -187,10 +187,10 @@ def make_questions_vocab(questions, answers, answer_vocab):
 
 	return qw_vocab, max_question_length
 
-def getImage(datapath, imageID):
+def getImage(datapath, imageID, purpose='train'):
 	name_3 = str(imageID)
 	name_2 = '0' * (12-len(name_3))
-	name_1 = 'COCO_train2014_'
+	name_1 = 'COCO_' + purpose + '2014_'
 	fileName = name_1 + name_2 + name_3 + '.jpg'
 	filepath = join(datapath,fileName)
 	img = skimage.io.imread(filepath)
@@ -213,7 +213,7 @@ def getImageFeatures(sess, vgg, images ,img ):
     return(img_feature)
 
 
-def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datapath, batchSize):
+def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datapath, batchSize=32, purpose='train'):
 	
 	currIndex = 0;
 	questionVocabSize = len(question_vocab.keys())
@@ -233,7 +233,7 @@ def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datap
 		qa_quest =  iter['question']
 
 		# Checking if the question is for a valid image or not
-		img = getImage(datapath, qa_id)
+		img = getImage(datapath, qa_id, purpose )
 		if(img.shape[2] < 3):
 			continue		
 
@@ -266,9 +266,8 @@ def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datap
 
 
 def getVGGhandle():
-	sess = tf.Session()
 	images = tf.placeholder("float", [None, 224, 224, 3])
 	vgg = vgg_model.Vgg16()
 	with tf.name_scope("content_vgg"):
 		vgg.build(images)
-	return([sess,vgg,images])
+	return(vgg,images)
