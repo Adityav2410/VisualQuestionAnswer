@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.rnn import *
@@ -9,30 +10,28 @@ from tensorflow.contrib.rnn import *
 
 class Model:
 
-	def __init__(self,sess=None,question_data_path=None,image_base_path=None,batchSize=32):
+	def __init__(self,sess=None,batchSize=32, C = None):
 
+
+		#### Variables related to image basic configuration
 		self.sess = sess
 		self.batchSize = batchSize
-		self.datapath = question_data_path
-		self.image_base_path = image_base_path
 
+		#### Variables related to basic vocab & QnA
 		self.question_dim = 15182
 		self.answer_dim = 1000
 		self.max_qs_len = 22
 
+		#### Variables related to RNN
 		self.rnn_ip_dim = 1024
 		self.rnn1_hidden_dim  = 512
 		self.rnn2_hidden_dim  = 128
 		
+		#### Variables related to CNN feature map
 		self.cnn_dim = 512
 		self.cnn_width = 14
 		self.cnn_height = 14
-		
-		self.saver_all = None
 
-	def enc_init(name,H,enc_hid_dim):
-		with tf.name_scope(name) as scope:
-			return
 
 	def build_network(self):
 
@@ -54,6 +53,9 @@ class Model:
 		# self.dummy_check = tf.zeros([self.batchSize,self.rnn_ip_dim])
 		# self.dummy_check = tf.cast(self.dummy_check,tf.float32)
 		
+		# Counter variable - counts the number of times train step has been called
+		self.global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
+		
 		with tf.variable_scope('vqa_weights'):
 			self.qs_to_ip_w = tf.Variable(tf.random_normal([self.question_dim,self.rnn_ip_dim//2]),name='qs_to_rnn_w')
 			self.ip_to_rnn1_w = tf.Variable(tf.random_normal([self.rnn_ip_dim,self.rnn1_hidden_dim]),name='ip_to_rnn1_w')
@@ -74,23 +76,23 @@ class Model:
 		
 		self.hidden_state_rnn1 = tf.tile(tf.get_variable(
 			'rnn1_states', [1,2*self.rnn1_hidden_dim],
-			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32)),
+			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32),trainable=False),
 			[self.batchSize,1])
 
 		self.hidden_state_rnn2 = tf.tile(tf.get_variable(
 			'rnn2_states', [1,2*self.rnn2_hidden_dim],
-			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32)),
+			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32),trainable=False),
 			[self.batchSize,1])
 
 
 		self.op_rnn1 = tf.tile( tf.get_variable(
 			'rnn1_op',[1,self.rnn1_hidden_dim],
-			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32)),
+			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32),trainable=False),
 			[self.batchSize,1]	)
 
 		self.op_rnn2 = tf.tile( tf.get_variable(
 			'rnn2_op',[1,self.rnn2_hidden_dim],
-			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32)),
+			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32),trainable=False),
 			[self.batchSize,1]	)
 
 		self.rnn_input = tf.transpose(self.qs_ip, [1,0,2])
@@ -131,31 +133,37 @@ class Model:
 		self.ans_op = tf.matmul( self.res, self.rnn2_to_ans_w ) + self.rnn2_to_ans_b
 
 		self.cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.ans_ip, logits=self.ans_op))
-		self.train_step = tf.train.AdagradOptimizer(learning_rate = 0.01).minimize(self.cross_entropy)
+		self.train_step = tf.train.AdagradOptimizer(learning_rate = 0.01).minimize(self.cross_entropy,global_step = self.global_step)
 
 		self.correct_prediction = tf.equal(tf.argmax(self.ans_ip,1),tf.argmax(self.ans_op,1))
 		self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction,tf.float32))
 
-	
+		self.summary_op = self._create_summaries()
+
+
+
+	def _create_summaries(self):
+		with tf.name_scope("summaries"):
+			tf.summary.scalar("loss",self.cross_entropy)
+			tf.summary.scalar("accuracy", self.accuracy)
+			tf.summary.histogram("histogram_loss",self.cross_entropy)
+			summary_op = tf.summary.merge_all()
+		return(summary_op)
+
+
 
 	def write_tensorboard(self):
 		self.writer = tf.summary.FileWriter('../logs', self.sess.graph)
-		self.writer.flush()
+		# self.writer.flush()
+
 
 
 	def print_variables(self):
-
 		params = tf.all_variables()
 		print("Number of parameters in network: ", len(params))
 
 		for param in params:
 			print param.name,param.shape
 
-	def saveWeights(self):
-		self.params_save_dict={}
-		for p in tf.all_variables():
-			params_save_dict[p.name] = p
-
-		self.saver_all = tf.train.Saver(params_save_dict)
 
 

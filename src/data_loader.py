@@ -234,7 +234,9 @@ def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datap
 
 		# Checking if the question is for a valid image or not
 		img = getImage(datapath, qa_id, purpose )
-		if(img.shape[2] < 3):
+		# print img.shape
+
+		if( len(img.shape) < 3 or img.shape[2] < 3 ) :
 			continue		
 
 		batch_id.append(str(qa_id))
