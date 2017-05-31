@@ -52,7 +52,7 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 			batchCount += 1
 			batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()			
 
-			if( batchCount%1 == 0):
+			if( batchCount%100 == 0):
 				[curr_train_loss, curr_train_acc , train_summary] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
 																				feed_dict = { 	net.qs_ip  : batch_question ,				\
 																								net.ans_ip : batch_answer 	, 				\
