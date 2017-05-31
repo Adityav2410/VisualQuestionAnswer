@@ -45,22 +45,28 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 	prev_loss = sess.run(net.cross_entropy, feed_dict = { 		net.qs_ip  : batch_question ,	\
 																net.ans_ip : batch_answer 	, 	\
 																net.cnn_ip : batch_features })
-	print("Initial Loss: ", prev_loss)
 	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
 	# sess.run(tf.initialize_variables([global_step]))
 	batchCount = -1
-	print("Training network")
 	log_filename = 'train_' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.log'
 	fHandle = open(log_filename, 'w')
 	print("Writing log to file: ", log_filename)
+
+	print("Training network")
+	print("Initial Loss: ", prev_loss)
+	print "Number of epochs:%d , \t Iteration per epoch:%d" % ( num_epochs, nIter)
+	fHandle.write("Training Network")
+
+	fHandle.write("Initial Loss: " % (prev_loss))
+
 	start_time = time.time()
 	
-	for i in range( num_epochs):
+	for epoch in range( num_epochs):
 		for iter in range(nIter):
 			batchCount += 1
 			batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()			
 
-			if( batchCount%100 == 0):
+			if( batchCount%1 == 0):
 				[curr_train_loss, curr_train_acc , train_summary] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
 																				feed_dict = { 	net.qs_ip  : batch_question ,				\
 																								net.ans_ip : batch_answer 	, 				\
@@ -80,8 +86,8 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 					fHandle.write("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
 					saver_all.save(sess,'checkpoints/vqa',global_step=net.global_step)
 					prev_loss = curr_train_loss
-				print "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc,time.time()-start_time)
-				fHandle.write( "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d s \n" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc, time.time()-start_time) )
+				print "Epoc:%d/%d_Iter:%d/%d,  TrainLoss:%.2f  TrainAccuracy:%.2f,  ValidLoss:%.2f  ValidAccuracy:%.2f  Elapsed time: %d" % (epoch,num_epochs,iter,nIter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc,time.time()-start_time)
+				fHandle.write("Epoc:%d/%d_Iter:%d/%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d" % (epoch,num_epochs,iter,nIter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc,time.time()-start_time))
 				start_time = time.time()
 			# train the batch
 			sess.run( net.train_step, feed_dict = 	{ 	net.qs_ip  : batch_question ,
