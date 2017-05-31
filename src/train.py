@@ -73,12 +73,11 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 																								net.cnn_ip : valid_batch_features } )		
 
 				if(curr_train_loss < prev_loss):
-					prev_loss = curr_train_loss
 					print("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
 					print("Saving session")
 					fHandle.write("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
 					saver_all.save(sess,'checkpoints/vqa',global_step=net.global_step)
-
+					prev_loss = curr_train_loss
 				print "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f " % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc)
 				fHandle.write( "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \n" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc) )
 			# train the batch
