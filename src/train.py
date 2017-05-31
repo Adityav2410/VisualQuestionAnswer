@@ -5,6 +5,7 @@ import data_loader
 import sys
 import os
 from datetime import datetime
+import time
 
 
 # -*- coding: utf-8 -*-
@@ -52,6 +53,7 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 	log_filename = 'train_' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.log'
 	fHandle = open(log_filename, 'w')
 	print("Writing log to file: ", log_filename)
+	start_time = time.time()
 	
 	for i in range( num_epochs):
 		for iter in range(nIter):
@@ -78,8 +80,9 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 					fHandle.write("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
 					saver_all.save(sess,'checkpoints/vqa',global_step=net.global_step)
 					prev_loss = curr_train_loss
-				print "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f " % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc)
-				fHandle.write( "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \n" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc) )
+				print "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc,time.time()-start_time)
+				fHandle.write( "Batch:%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d s \n" % (iter,curr_train_loss,curr_train_acc,curr_valid_loss,curr_valid_acc, time.time()-start_time) )
+				start_time = time.time()
 			# train the batch
 			sess.run( net.train_step, feed_dict = 	{ 	net.qs_ip  : batch_question ,
 														net.ans_ip : batch_answer , 
