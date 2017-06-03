@@ -17,6 +17,7 @@ import os
 import random
 import re
 import time
+from pdb import set_trace as bp
 
 def load_questions_answers(data_dir):
 	
@@ -220,9 +221,10 @@ def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datap
 	answerVocabSize = len(answer_vocab.keys())
 	question_length = qa_data[0]['question'].shape[0]
 
-	quest_oneHot = np.zeros((1,questionVocabSize,question_length))
+	# quest_oneHot = np.zeros((1,questionVocabSize,question_length))
 	ans_oneHot = np.zeros((1,answerVocabSize))
-	batch_quest = np.zeros((0,question_length,questionVocabSize))
+	# batch_quest = np.zeros((0,question_length,questionVocabSize))
+	batch_quest = np.zeros((0,question_length))
 	batch_ans   = np.zeros((0,answerVocabSize))
 	batchFeatures = np.zeros((0,14,14,512))
 	batch_id = []
@@ -248,19 +250,27 @@ def getNextBatch(sess, vgg, images, qa_data, question_vocab, answer_vocab, datap
 		currIndex = currIndex + 1
 
 		ans_oneHot = np.zeros((1,answerVocabSize))
-		quest_oneHot = np.zeros((1,question_length,questionVocabSize))
-		for i in range(qa_quest.shape[0]):
-			quest_oneHot[ 0,i,int(qa_quest[i]) ] = 1
+		# quest_oneHot = np.zeros((1,question_length,questionVocabSize))
+		# for i in range(qa_quest.shape[0]):
+			# quest_oneHot[ 0,i,int(qa_quest[i]) ] = 1
 		ans_oneHot[0,qa_ans] = 1
-
+		# print(qa_quest)
+		# print(qa_quest.shape)
+		# print(batch_quest.shape)
+		# bp()
 		# Concat all the question in the batch
-		batch_quest = np.concatenate((batch_quest,quest_oneHot),0)
+		batch_quest = np.concatenate((batch_quest,np.reshape(qa_quest,(1,-1))),0)
 		batch_ans   = np.concatenate((batch_ans  ,ans_oneHot),0)
+
+		# print("Question shape:", batch_quest.shape)
+		# print("Answer shape:", batch_quest.shape)
+		# print("ID shape:", batch_id)
+		# print("Feature shape:", batch_quest.shape)
 
 		if currIndex == batchSize:
 			yield np.copy(batch_quest),np.copy(batch_ans),batch_id[:],np.copy(batchFeatures) 
 			batch_id = []
-			batch_quest 	= np.zeros((0,question_length,questionVocabSize,))
+			batch_quest 	= np.zeros((0,question_length))
 			batch_ans   	= np.zeros((0,answerVocabSize))
 			batchFeatures 	= np.zeros((0,14,14,512))
 			currIndex 		= 0

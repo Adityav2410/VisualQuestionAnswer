@@ -4,9 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.rnn import *
 
-# import pdb
-
-# pdb.set_trace()
+from pdb import set_trace as bp
 
 class Model:
 
@@ -18,7 +16,7 @@ class Model:
 		self.batchSize = batchSize
 
 		#### Variables related to basic vocab & QnA
-		self.question_dim = 15182
+		self.question_dim = 15183
 		self.answer_dim = 1000
 		self.max_qs_len = 22
 
@@ -31,12 +29,14 @@ class Model:
 		self.cnn_dim = 512
 		self.cnn_width = 14
 		self.cnn_height = 14
+		self.word_embedd = np.load(C.embedd_weight_path)
 
 
 	def build_network(self):
 
 		self.cnn_ip = tf.placeholder(tf.float32,shape=[self.batchSize,self.cnn_width,self.cnn_height,self.cnn_dim])
-		self.qs_ip = tf.placeholder(tf.float32,shape=[self.batchSize,self.max_qs_len,self.question_dim])
+		# self.qs_ip = tf.placeholder(tf.float32,shape=[self.batchSize,self.max_qs_len,self.question_dim])
+		self.qs_ip = tf.placeholder(tf.int32,shape=[self.batchSize,self.max_qs_len])
 		self.ans_ip = tf.placeholder(tf.float32,shape=[self.batchSize,self.answer_dim])
 		#self.rnn_input = tf.placeholder(tf.float32,shape=[self.max_qs_len,self.batchSize,self.question_dim])
 		self.rnn_input_encoded = tf.zeros([self.batchSize, self.rnn_ip_dim//2], name="qs_embedded")
@@ -57,7 +57,7 @@ class Model:
 		self.global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
 		
 		with tf.variable_scope('vqa_weights'):
-			self.qs_to_ip_w = tf.Variable(tf.random_normal([self.question_dim,self.rnn_ip_dim//2]),name='qs_to_rnn_w')
+			self.qs_to_ip_w = tf.Variable(tf.constant(self.word_embedd),name='qs_to_rnn_w', trainable=False)
 			self.ip_to_rnn1_w = tf.Variable(tf.random_normal([self.rnn_ip_dim,self.rnn1_hidden_dim]),name='ip_to_rnn1_w')
 			self.rnn_to_attn_w = tf.Variable(tf.random_normal([self.rnn1_hidden_dim,self.cnn_dim]),name='rnn_to_attn_w')
 
@@ -95,14 +95,17 @@ class Model:
 			tf.float32,tf.constant_initializer(value=0,dtype=tf.float32),trainable=False),
 			[self.batchSize,1]	)
 
-		self.rnn_input = tf.transpose(self.qs_ip, [1,0,2])
+		# self.rnn_input = tf.transpose(self.qs_ip, [1,0,2])
+		self.rnn_input = tf.transpose(self.qs_ip, [1,0])
 
+		bp()
 		def fn(ip):
 			
-			self.rnn_input_encoded = tf.matmul(ip,self.qs_to_ip_w) + self.qs_to_ip_b
-			self.rnn_ip = tf.concat([ip,self.attn_vec],1)
+			# self.rnn_input_encoded = tf.matmul(ip,self.qs_to_ip_w) + self.qs_to_ip_b
+			self.rnn_input_encoded = tf.nn.embedding_lookup(self.qs_to_ip_w, ip)
+			self.rnn_ip = tf.concat([self.rnn_input_encoded,self.attn_vec],1)
 			
-			with tf.variable_scope('rnn1_weights'):
+			with tf.variable_scope('rnn1_weights') as scope:
 				self.op_rnn1,self.hidden_state_rnn1 = self.rnn1_cell(self.rnn_ip,self.hidden_state_rnn1)
 			with tf.variable_scope('rnn2_weights'):
 				self.op_rnn2,self.hidden_state_rnn2 = self.rnn2_cell(self.op_rnn1,self.hidden_state_rnn2)
@@ -125,8 +128,8 @@ class Model:
 
 
 		
-		fun = tf.make_template('fun', fn)
-		self.res = tf.map_fn(fun,self.rnn_input,dtype=tf.float32)
+		# fun = tf.make_template('fun', fn)
+		self.res = tf.map_fn(fn,self.rnn_input,dtype=tf.float32)
 		print self.res.get_shape()
 
 		self.res = self.res[-1][:,:128]

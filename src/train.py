@@ -48,8 +48,8 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
 	# sess.run(tf.initialize_variables([global_step]))
 	batchCount = -1
-	log_filename = 'train_' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.log'
-	fHandle = open(log_filename, 'w')
+	log_filename = './log_dir/train_' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.log'
+	fHandle = open( log_filename, 'w')
 	print("Writing log to file: ", log_filename)
 
 	print("Training network")

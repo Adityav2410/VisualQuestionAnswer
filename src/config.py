@@ -5,14 +5,15 @@ import tensorflow as tf
 
 class Config:
 	def __init__(self):
-		self.batchSize = 32
-		self.datapath = '/home/adityav/ADITYA/Project/Cogs_Image_Caption/VisualQuestionAnswer/data/'
-		self.image_base_path = '/home/adityav/ADITYA/Project/Cogs_Image_Caption/VisualQuestionAnswer/data/'
-		self.model_dir = 'checkpoints/'
+
+		self.datapath = '../data/'
+		self.image_base_path = '../data/'
+		self.model_dir = './checkpoints/'
+		self.embedd_weight_path = '../weights/embedd_weight.npy'
 
 
-		self.num_epochs = 10
-		self.batchSize = 32
+		self.num_epochs = 1
+		self.batchSize = 1
 		self.task_to_perform = 'train'
 
 		self.verbose = False

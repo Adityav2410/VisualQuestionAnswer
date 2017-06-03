@@ -6,6 +6,7 @@ from model import *
 from train import trainNetwork
 from config import Config
 #from test import testNetwork
+from pdb import set_trace as bp
 
 def parse_args(C):
 	parser = argparse.ArgumentParser()
@@ -40,13 +41,12 @@ if __name__ == '__main__':
 	# args = parse_args(C)
 	if not os.path.exists('../logs'):
 		os.makedirs('../logs')
-	
-	# import pdb
-	# pdb.set_trace()
+
 
 	with tf.Session() as sess:
 
 		###################### Load model #######################
+		# bp() 
 		net = Model(sess=sess,batchSize=C.batchSize,C = C)
 		net.build_network()
 
