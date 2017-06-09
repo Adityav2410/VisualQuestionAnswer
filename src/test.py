@@ -6,45 +6,58 @@ import sys
 import os
 from datetime import datetime
 import time
+import data_loader
+import skimage.io
 
 
 # -*- coding: utf-8 -*-
 
+def getAnswerToQuestion(sess,image_file, vgg_handle, image_placeholder, question,answer,vocab, numAnswer = 3):
 
-def trainNetwork(sess, net, num_epochs, C, saver_all):
+
+	# Read image and get its feature map
+	img 		= 	skimage.io.imread(image_file)
+	imgFeatures = 	data_loader.getImageFeatures(sess,vgg_handle, image_placeholder, img)
+
+
+	# Parse all the vqa question informations
+	vocab 	= 	data_loader.load_vocab(C.vocab_file)
+	
+
+	 = sess.run(net.cross_entropy, feed_dict = { 		net.qs_ip  : batch_question ,	\
+																net.ans_ip : batch_answer 	, 	\
+																net.cnn_ip : batch_features })
+
+
+
+	 
+		# print img.shape
+
+		if( len(img.shape) < 3 or img.shape[2] < 3 ) :
+			continue		
+
+		batch_id.append(str(qa_id))
+		# Image is valid - Get features of the image
+		
+
+
+
+
+def testNetwork(sess, net, num_epochs, C):
 # -*- coding: utf-8 -*-
 	# Get handle for vgg model
 	vgg,images = data_loader.getVGGhandle()
 
 	# Parse all the vqa question informations
-	qa_data = data_loader.load_questions_answers(C.datapath)
-	data_validation =      qa_data['validation']
-	data_training =        qa_data['training']
-	question_vocab =       qa_data['question_vocab']
-	answer_vocab =         qa_data['answer_vocab']
-	question_input_dim =   len(question_vocab)
-	answer_out_dim =       len(answer_vocab)
+	vocab = load_vocab(C.vocab_file)
 
-	num_training_data = len(data_training)
-	nIter = num_training_data // net.batchSize
 
-	# Prepare data generator which will be used for training the network
-	train_data_generator = data_loader.getNextBatch(sess ,vgg,images, data_training,  question_vocab, answer_vocab,os.path.join(C.image_base_path,'train2014'), batchSize = C.batchSize, purpose='train')
-	valid_data_generator = data_loader.getNextBatch(sess ,vgg,images, data_validation,question_vocab, answer_vocab,os.path.join(C.image_base_path,'val2014'),   batchSize = C.batchSize, purpose='val')
+
+
 
 	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
 
-	# Generate data in batches:
-	# batch_question : [batchSize = 32, maxQuestionLength=22, questionVocabDim = 15xxx]
-	# batch_answer   : [batchSize = 32, answer_vocab = 1000]
-	# batch_image_id : [batchSize = 32, 'filename of all the images in the batch' -> ['487025', '487025', '78077' ...... ] ]
-	# batch_features : [batchSize = 32, cnnHeight=14, cnnWidth=14, featureDim = 512]
-	# batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()
 
-	batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()			
-	prev_loss = sess.run(net.cross_entropy, feed_dict = { 		net.qs_ip  : batch_question ,	\
-																net.ans_ip : batch_answer 	, 	\
-																net.cnn_ip : batch_features })
 	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
 	# sess.run(tf.initialize_variables([global_step]))
 	batchCount = -1
@@ -66,26 +79,14 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 			batchCount += 1
 			batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()			
 
-			if( batchCount%1 == 0):
-				run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-				run_metadata = tf.RunMetadata()
-				
-				[curr_train_loss, curr_train_acc , train_summary, true_answer, predicted_answer] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op,
-																										net.true_answer, net.predicted_answer		] , 			\
-																										feed_dict = { 	net.qs_ip  : batch_question ,				\
-																										net.ans_ip : batch_answer 	, 				\
-																										net.cnn_ip : batch_features },
-																										options=run_options,
-																										run_metadata=run_metadata)
+			if( batchCount%100 == 0):
+				[curr_train_loss, curr_train_acc , train_summary] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
+																				feed_dict = { 	net.qs_ip  : batch_question ,				\
+																								net.ans_ip : batch_answer 	, 				\
+																								net.cnn_ip : batch_features } )				
 
-				print("True labels")
-				print true_answer
-				print("Predicted labels")
-				print predicted_answer
-
-				net.writer.add_run_metadata(run_metadata, 'step%03d' % batchCount)
 				net.writer.add_summary(train_summary)
-				
+
 				valid_batch_question,valid_batch_answer,valid_batch_image_id,valid_batch_features = valid_data_generator.next()
 				[curr_valid_loss, curr_valid_acc, valid_summary ] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
 																				feed_dict = {	net.qs_ip  : valid_batch_question ,   		\
@@ -106,7 +107,6 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 														net.ans_ip : batch_answer , 
 														net.cnn_ip : batch_features } )
 			# net.print_variables()
-	net.writer.close()
 	fHandle.close()
 
 

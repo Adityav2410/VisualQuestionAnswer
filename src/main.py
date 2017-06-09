@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
 		if(C.task_to_perform == 'train'):
 			trainNetwork(sess, net,C.num_epochs, C, saver_all)
-			# saver_all.save(sess,'checkpoints/vqa')
+			saver_all.save(sess,'checkpoints/vqa')
 
 		# if(args.task_to_perform == 'test'):
 		# 	testNetwork(sess, net)

@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import *
 
 from pdb import set_trace as bp
+from utils import gen_plot
 
 class Model:
 
@@ -31,7 +32,8 @@ class Model:
 		self.cnn_height = 14
 		self.word_embedd = np.load(C.embedd_weight_path)
 
-
+		#### Basic hyper-parameters ######################
+		self.lr = 0.01
 	def build_network(self):
 
 		self.cnn_ip = tf.placeholder(tf.float32,shape=[self.batchSize,self.cnn_width,self.cnn_height,self.cnn_dim])
@@ -98,7 +100,7 @@ class Model:
 		# self.rnn_input = tf.transpose(self.qs_ip, [1,0,2])
 		self.rnn_input = tf.transpose(self.qs_ip, [1,0])
 
-		bp()
+		#bp()
 		def fn(ip):
 			
 			# self.rnn_input_encoded = tf.matmul(ip,self.qs_to_ip_w) + self.qs_to_ip_b
@@ -107,8 +109,10 @@ class Model:
 			
 			with tf.variable_scope('rnn1_weights') as scope:
 				self.op_rnn1,self.hidden_state_rnn1 = self.rnn1_cell(self.rnn_ip,self.hidden_state_rnn1)
+				scope.reuse_variables()
 			with tf.variable_scope('rnn2_weights'):
 				self.op_rnn2,self.hidden_state_rnn2 = self.rnn2_cell(self.op_rnn1,self.hidden_state_rnn2)
+				scope.reuse_variables()
 
 			self.rnn_attn_vec = tf.matmul(self.op_rnn1,self.rnn_to_attn_w, name='rnn_to_att_vec') + self.rnn_to_attn_b
 			self.rnn_attn_vec = tf.reshape( self.rnn_attn_vec, shape=[self.batchSize,1,1,self.cnn_dim])
@@ -123,33 +127,54 @@ class Model:
 			self.attn_vec   = tf.reduce_sum(self.attn_vec,axis = 2,name='sum2')
 			self.attn_vec   = tf.reduce_sum(self.attn_vec,axis = 1,name='sum3')
 
-			
-			return tf.concat([self.op_rnn2  ,self.attn_vec],axis=1)
+			self.attn_map 	= tf.reshape(self.attn_prob,shape=[self.batchSize, self.cnn_width*self.cnn_height])
+			return tf.concat([self.op_rnn2  ,self.attn_map],axis=1)
 
 
 		
-		# fun = tf.make_template('fun', fn)
+		fun = tf.make_template('fun', fn)
 		self.res = tf.map_fn(fn,self.rnn_input,dtype=tf.float32)
 		print self.res.get_shape()
 
-		self.res = self.res[-1][:,:128]
-		self.ans_op = tf.matmul( self.res, self.rnn2_to_ans_w ) + self.rnn2_to_ans_b
+		self.res_rnn2 = self.res[-1][:,:128]
+		self.ans_op = tf.matmul( self.res_rnn2, self.rnn2_to_ans_w ) + self.rnn2_to_ans_b
 
 		self.cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.ans_ip, logits=self.ans_op))
-		self.train_step = tf.train.AdagradOptimizer(learning_rate = 0.01).minimize(self.cross_entropy,global_step = self.global_step)
+		self.train_step = tf.train.MomentumOptimizer(learning_rate = self.lr, momentum = 0.9, use_nesterov=True).minimize(self.cross_entropy)
+		#self.train_step = tf.train.AdamOptimizer(learning_rate = 0.01).minimize(self.cross_entropy,global_step = self.global_step)
+		# bp()
 
+		self.true_answer 		=	tf.argmax(self.ans_ip,1)
+		self.predicted_answer 	= 	tf.argmax(self.ans_op,1)
+		
 		self.correct_prediction = tf.equal(tf.argmax(self.ans_ip,1),tf.argmax(self.ans_op,1))
 		self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction,tf.float32))
 
 		self.summary_op = self._create_summaries()
 
 
-
 	def _create_summaries(self):
 		with tf.name_scope("summaries"):
 			tf.summary.scalar("loss",self.cross_entropy)
 			tf.summary.scalar("accuracy", self.accuracy)
+
+			# self.answer_plot = gen_plot(data1 = self.predicted_answer, data2 = self.true_answer,
+			# 							label1 = 'predicted Answer', label2 = 'true Answer', title = 'True vs Predicted answer' ) 
+
 			tf.summary.histogram("histogram_loss",self.cross_entropy)
+			tf.summary.histogram("true_ans",self.true_answer)
+			tf.summary.histogram("predicted_ans",self.predicted_answer)
+		
+		
+			tf.summary.image('attn_map_t0', tf.reshape(self.res[0][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
+			tf.summary.image('attn_map_t8', tf.reshape(self.res[8][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
+			tf.summary.image('attn_map_t17', tf.reshape(self.res[17][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
+			tf.summary.image('attn_map_t19', tf.reshape(self.res[19][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
+			tf.summary.image('attn_map_t21', tf.reshape(self.res[21][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
+			# tf.summary.image('normal_distribution', tf.random_normal(shape=[self.batchSize,self.cnn_width,self.cnn_height,1], dtype=tf.float32) )
+			# tf.summary.image('true_vs_predicted_ans', self.answer_plot)
+		
+			# tf.summary.image('attention_map',self.res_attn_map)
 			summary_op = tf.summary.merge_all()
 		return(summary_op)
 

@@ -12,8 +12,10 @@ class Config:
 		self.embedd_weight_path = '../weights/embedd_weight.npy'
 
 
-		self.num_epochs = 1
-		self.batchSize = 1
+		self.num_epochs = 5
+		self.batchSize = 32
 		self.task_to_perform = 'train'
 
 		self.verbose = False
+
+		self.vocab_file = '../data/vocab_file.pkl'

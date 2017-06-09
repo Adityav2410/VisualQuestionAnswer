@@ -283,3 +283,38 @@ def getVGGhandle():
 	with tf.name_scope("content_vgg"):
 		vgg.build(images)
 	return(vgg,images)
+
+
+
+
+def load_vocab(vocab_file):
+	if isfile(vocab_file):
+		with open(vocab_file) as f:
+			vocab = pickle.load(f)
+			return(vocab)
+	else:
+		print("Incorrect vocab file")
+		return(None)
+
+
+
+def QnAinVectorNotation(question,answer, vocab):
+    q_vocab = vocab['question_vocab']
+    ans_vocab = vocab['answer_vocab']
+    max_question_length = vocab['max_question_length']
+
+    q_vec = np.zeros(max_question_length)
+
+    # convert question in vector notation
+    word_regex = re.compile(r'\w+')
+    question_words = re.findall(word_regex, question)
+    base = max_question_length - len(question_words)
+    for i in range(0, len(question_words)):
+        q_vec[base + i] = q_vocab[ question_words[i] ]
+
+    # convert answer in vector notation
+    ans_vec = ans_vocab.get(answer)
+
+    return(q_vec, ans_vec)
+
+
