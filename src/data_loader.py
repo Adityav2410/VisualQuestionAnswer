@@ -32,6 +32,7 @@ def load_questions_answers(data_dir):
 	qa_data_file = join(data_dir, 'qa_data_file.pkl')
 	vocab_file = join(data_dir, 'vocab_file.pkl')
 
+	# bp()
 	# IF ALREADY EXTRACTED
 	if isfile(qa_data_file):
 		with open(qa_data_file) as f:
@@ -312,9 +313,15 @@ def QnAinVectorNotation(question,answer, vocab):
     for i in range(0, len(question_words)):
         q_vec[base + i] = q_vocab[ question_words[i] ]
 
+    q_vec = np.expand_dims(q_vec,axis=0)
     # convert answer in vector notation
-    ans_vec = ans_vocab.get(answer)
-
-    return(q_vec, ans_vec)
+    return(q_vec)
 
 
+
+def get_reverse_vocab(vocab):
+	reverse_vocab = {}
+	for key,value in vocab.iteritems():
+		reverse_vocab[value] = key
+
+	return( reverse_vocab )

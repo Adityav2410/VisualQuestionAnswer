@@ -13,8 +13,10 @@ class Config:
 
 
 		self.num_epochs = 5
-		self.batchSize = 32
-		self.task_to_perform = 'train'
+		self.batchSize = 1
+
+		self.numAnswer = 5
+		self.task_to_perform = 'test'
 
 		self.verbose = False
 

@@ -5,11 +5,11 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import *
 
 from pdb import set_trace as bp
-from utils import gen_plot
+# from utils import gen_plot
 
 class Model:
 
-	def __init__(self,sess=None,batchSize=32, C = None):
+	def __init__(self,sess=None,batchSize=None, C = None):
 
 
 		#### Variables related to image basic configuration
@@ -138,6 +138,7 @@ class Model:
 
 		self.res_rnn2 = self.res[-1][:,:128]
 		self.ans_op = tf.matmul( self.res_rnn2, self.rnn2_to_ans_w ) + self.rnn2_to_ans_b
+		self.ans_op_prob = tf.nn.softmax( self.ans_op)
 
 		self.cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.ans_ip, logits=self.ans_op))
 		self.train_step = tf.train.MomentumOptimizer(learning_rate = self.lr, momentum = 0.9, use_nesterov=True).minimize(self.cross_entropy)
@@ -149,6 +150,12 @@ class Model:
 		
 		self.correct_prediction = tf.equal(tf.argmax(self.ans_ip,1),tf.argmax(self.ans_op,1))
 		self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction,tf.float32))
+
+		self.attn_map_t0  = tf.reshape(self.res[0][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) 
+		self.attn_map_t8  = tf.reshape(self.res[8][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) 
+		self.attn_map_t17 = tf.reshape(self.res[17][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) 
+		self.attn_map_t19 = tf.reshape(self.res[19][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) 
+		self.attn_map_t21 = tf.reshape(self.res[21][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) 
 
 		self.summary_op = self._create_summaries()
 
@@ -165,16 +172,12 @@ class Model:
 			tf.summary.histogram("true_ans",self.true_answer)
 			tf.summary.histogram("predicted_ans",self.predicted_answer)
 		
-		
-			tf.summary.image('attn_map_t0', tf.reshape(self.res[0][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
-			tf.summary.image('attn_map_t8', tf.reshape(self.res[8][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
-			tf.summary.image('attn_map_t17', tf.reshape(self.res[17][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
-			tf.summary.image('attn_map_t19', tf.reshape(self.res[19][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
-			tf.summary.image('attn_map_t21', tf.reshape(self.res[21][:,128:],shape=[self.batchSize,self.cnn_width,self.cnn_height,1]) )
-			# tf.summary.image('normal_distribution', tf.random_normal(shape=[self.batchSize,self.cnn_width,self.cnn_height,1], dtype=tf.float32) )
-			# tf.summary.image('true_vs_predicted_ans', self.answer_plot)
-		
-			# tf.summary.image('attention_map',self.res_attn_map)
+			tf.summary.image('attn_map_t0' , self.attn_map_t0  )
+			tf.summary.image('attn_map_t8' , self.attn_map_t8  )
+			tf.summary.image('attn_map_t17', self.attn_map_t17 )
+			tf.summary.image('attn_map_t19', self.attn_map_t19 )
+			tf.summary.image('attn_map_t21', self.attn_map_t21 )
+
 			summary_op = tf.summary.merge_all()
 		return(summary_op)
 

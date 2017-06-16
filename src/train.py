@@ -6,6 +6,7 @@ import sys
 import os
 from datetime import datetime
 import time
+from pdb import set_trace as bp
 
 
 # -*- coding: utf-8 -*-
@@ -22,9 +23,11 @@ def trainNetwork(sess, net, num_epochs, C, saver_all):
 	data_training =        qa_data['training']
 	question_vocab =       qa_data['question_vocab']
 	answer_vocab =         qa_data['answer_vocab']
+	
+	bp()
 	question_input_dim =   len(question_vocab)
 	answer_out_dim =       len(answer_vocab)
-
+	
 	num_training_data = len(data_training)
 	nIter = num_training_data // net.batchSize
 

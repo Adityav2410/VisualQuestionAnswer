@@ -5,7 +5,7 @@ import tensorflow as tf
 from model import *
 from train import trainNetwork
 from config import Config
-#from test import testNetwork
+from test import testNetwork
 from pdb import set_trace as bp
 
 def parse_args(C):
@@ -69,6 +69,8 @@ if __name__ == '__main__':
 		if(C.task_to_perform == 'train'):
 			trainNetwork(sess, net,C.num_epochs, C, saver_all)
 			saver_all.save(sess,'checkpoints/vqa')
+		if(C.task_to_perform  == 'test'):
+			testNetwork(sess,net, C)
 
 		# if(args.task_to_perform == 'test'):
 		# 	testNetwork(sess, net)

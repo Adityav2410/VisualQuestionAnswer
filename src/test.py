@@ -10,107 +10,92 @@ import data_loader
 import skimage.io
 
 
+import argparse
+import os
+import sys
+import tensorflow as tf
+from model import *
+from train import trainNetwork
+from config import Config
+#from test import testNetwork
+from pdb import set_trace as bp
+import utils
+
 # -*- coding: utf-8 -*-
 
-def getAnswerToQuestion(sess,image_file, vgg_handle, image_placeholder, question,answer,vocab, numAnswer = 3):
+# get answer for a given question
+# def getAnswerToQuestion(sess,image_file_path, vgg_handle, image_placeholder, question,vocab, reverse_answer_vocab, numAnswer = 3):
 
 
-	# Read image and get its feature map
-	img 		= 	skimage.io.imread(image_file)
-	imgFeatures = 	data_loader.getImageFeatures(sess,vgg_handle, image_placeholder, img)
+# 	# Read image and get its feature map
+# 	img 			= 	skimage.io.imread(image_file_path)
+# 	if( len(img.shape) < 3 or img.shape[2] < 3 ) :
+# 			continue		
+
+# 	imgFeatures 	= 	data_loader.getImageFeatures(sess,vgg_handle, image_placeholder, img)
+# 	[q_vec,ans_vec] = 	data_loader.QnAinVectorNotation(question,answer, vocab)	
 
 
-	# Parse all the vqa question informations
-	vocab 	= 	data_loader.load_vocab(C.vocab_file)
 	
+# 	predicted_prob, attn_map_t0,attn_map_t8,attn_map_t17, attn_map_t19,attn_map_t21 = sess.run(net.ans_op,net.attn_map_t0 ,
+# 																								net.attn_map_t8,net.attn_map_t17,net.attn_map_t19,net.attn_map_t21,
+# 		  																						feed_dict = { net.qs_ip  : q_vec ,
+# 		  																									  net.cnn_ip : imgFeatures })
 
-	 = sess.run(net.cross_entropy, feed_dict = { 		net.qs_ip  : batch_question ,	\
-																net.ans_ip : batch_answer 	, 	\
-																net.cnn_ip : batch_features })
+# 	[top_predicted_answer,predicted_answer_prob] = parse_predicted_probabilities(predicted_prob, reverse_answer_vocab, numAnswer)
+# 	attn_map 		= 	[	attn_map_t0[0],	attn_map_t8[0],	attn_map_t17[0],	attn_map_t19[0],	attn_map_t21[0]	]
 
-
-
-	 
-		# print img.shape
-
-		if( len(img.shape) < 3 or img.shape[2] < 3 ) :
-			continue		
-
-		batch_id.append(str(qa_id))
-		# Image is valid - Get features of the image
-		
+# 	return( top_predicted_answer, predicted_answer_prob, attn_map )
 
 
 
-
-def testNetwork(sess, net, num_epochs, C):
+def visualizeNetwork(sess, net, C):
 # -*- coding: utf-8 -*-
 	# Get handle for vgg model
 	vgg,images = data_loader.getVGGhandle()
 
 	# Parse all the vqa question informations
-	vocab = load_vocab(C.vocab_file)
+	qa_data = data_loader.load_questions_answers(C.datapath)
+	data_validation =      qa_data['validation']
+	data_training =        qa_data['training']
+	question_vocab =       qa_data['question_vocab']
+	answer_vocab =         qa_data['answer_vocab']
+	reverse_answer_vocab = data_loader.get_reverse_vocab(answer_vocab)
+	reverse_quest_vocab  =	data_loader.get_reverse_vocab(question_vocab)
 
+	train_data_path = os.path.join(C.image_base_path,'train2014')
+	val_data_path 	= os.path.join(C.image_base_path,'val2014')
+	train_data_generator = data_loader.getNextBatch(sess ,vgg,images, data_training,  question_vocab, answer_vocab,train_data_path, batchSize = 1, purpose='train')
+	valid_data_generator = data_loader.getNextBatch(sess ,vgg,images, data_validation,question_vocab, answer_vocab,val_data_path, batchSize = 1, purpose='val')
 
+	save_path = '../vizQnA/'
 
-
-
-	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
-
-
-	# global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
-	# sess.run(tf.initialize_variables([global_step]))
-	batchCount = -1
-	log_filename = './log_dir/train_' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.log'
-	fHandle = open( log_filename, 'w')
-	print("Writing log to file: ", log_filename)
-
-	print("Training network\n")
-	print("Initial Loss: ", prev_loss)
-	print "Number of epochs:%d , \t Iteration per epoch:%d" % ( num_epochs, nIter)
-	fHandle.write("Training Network\n")
-
-	fHandle.write("Initial Loss: \n" % (prev_loss))
-
-	start_time = time.time()
 	
-	for epoch in range( num_epochs):
-		for iter in range(nIter):
-			batchCount += 1
-			batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()			
+	for i in range(C.max_visualize):
+		batch_question,batch_answer,batch_image_id,batch_features = train_data_generator.next()	
+		image_path = train_data_path
 
-			if( batchCount%100 == 0):
-				[curr_train_loss, curr_train_acc , train_summary] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
-																				feed_dict = { 	net.qs_ip  : batch_question ,				\
-																								net.ans_ip : batch_answer 	, 				\
-																								net.cnn_ip : batch_features } )				
+		image_save_dir = os.path.join( save_path, batch_image_id[0])
+		utils.make_dir(image_save_dir)
 
-				net.writer.add_summary(train_summary)
+		[predicted_prob, attn_map_t0,attn_map_t8,attn_map_t17, attn_map_t19,attn_map_t21 ]= sess.run([net.ans_op_prob,net.attn_map_t0 ,net.attn_map_t8,				\
+																										net.attn_map_t17,net.attn_map_t19,net.attn_map_t21]	, 	\
+		  																							feed_dict = { net.qs_ip  : batch_question ,					\
+		  																										  net.cnn_ip : batch_features })
 
-				valid_batch_question,valid_batch_answer,valid_batch_image_id,valid_batch_features = valid_data_generator.next()
-				[curr_valid_loss, curr_valid_acc, valid_summary ] = sess.run([net.cross_entropy, net.accuracy ,net.summary_op] , 
-																				feed_dict = {	net.qs_ip  : valid_batch_question ,   		\
-																								net.ans_ip : valid_batch_answer   , 		\
-																								net.cnn_ip : valid_batch_features } )		
 
-				if(curr_train_loss < prev_loss):
-					print("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
-					print("Saving session")
-					fHandle.write("Loss decreased from %.4f to %.4f"%(prev_loss,curr_train_loss))
-					saver_all.save(sess,'checkpoints/vqa',global_step=net.global_step)
-					prev_loss = curr_train_loss
-				print "Epoc:%d/%d_Iter:%d/%d,  TrainLoss:%.2f  TrainAccuracy:%.2f,  ValidLoss:%.2f  ValidAccuracy:%.2f  Elapsed time: %d" % (epoch,num_epochs,iter,nIter,curr_train_loss,curr_train_acc*100,curr_valid_loss,curr_valid_acc*100,time.time()-start_time)
-				fHandle.write("Epoc:%d/%d_Iter:%d/%d \t, TrainLoss: %.2f \t TrainAccuracy: %.2f \t, ValidLoss:%.2f \t ValidAccuracy:%.2f \t Elapsed time: %d\n" % (epoch,num_epochs,iter,nIter,curr_train_loss,curr_train_acc*100,curr_valid_loss,curr_valid_acc*100,time.time()-start_time))
-				start_time = time.time()
-			# train the batch
-			sess.run( net.train_step, feed_dict = 	{ 	net.qs_ip  : batch_question ,
-														net.ans_ip : batch_answer , 
-														net.cnn_ip : batch_features } )
-			# net.print_variables()
-	fHandle.close()
+		[top_predicted_answer,predicted_answer_prob] = utils.parse_predicted_probabilities(predicted_prob[0], C.numAnswer)
+		attn_map 		= 	[	attn_map_t0[0],	attn_map_t8[0],	attn_map_t17[0],	attn_map_t19[0],	attn_map_t21[0]	]
+
+		utils.process_results( top_predicted_answer, predicted_answer_prob, attn_map, image_path, batch_question[0], batch_answer[0], \
+								batch_image_id[0],  image_save_dir, reverse_quest_vocab, reverse_answer_vocab, purpose='train' )
 
 
 
 
+def testNetwork(sess,net,C):
+	# bp()
+	C.max_visualize = 100
+	visualizeNetwork(sess,net,C)
 
 
