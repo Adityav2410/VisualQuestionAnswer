@@ -76,9 +76,7 @@ class Model:
 			[self.rnn1_outputs, self.rnn1_states] = static_rnn( cell = self.rnn1_cell,inputs = q_embedd_list , dtype = tf.float32)
 
 		# get attention vector
-		self.qs_encoded = self.rnn1_outputs[-1]
-		self.rnn_attn_vec = tf.matmul( self.qs_encoded, self.rnn1_to_attn_w,name='rnn1_to_attn_vec') + self.rnn1_to_attn_b
-		self.rnn_attn_vec = tf.reshape( self.rnn_attn_vec, shape=[-1,1,1,self.cnn_dim])
+		self.rnn_attn_vec = tf.reshape( self.rnn1_states, shape=[-1,1,1,self.cnn_dim])
 
 		self.attn_prob  = tf.multiply(self.cnn_ip, self.rnn_attn_vec,name='attn_prob')
 		self.attn_prob  = tf.reduce_sum(self.attn_prob,axis=3,name='sum1')
@@ -91,10 +89,9 @@ class Model:
 		self.attn_vec   = tf.reduce_sum(self.attn_vec,axis = 1,name='sum3')
 
 		# Embedded question with image attention: 
-		self.embedded_image = tf.matmul(self.fc_ip, self.fc_embedd_w , name='fc_embedd') + self.fc_embedd_b
-		self.ques_image	=	tf.concat([ self.rnn1_outputs[-1], self.attn_vec, self.embedded_image ],axis=1)
+		self.ques_image	=	tf.concat([ self.rnn1_states, self.attn_vec, self.fc_ip ],axis=1)
 
-		self.pre_op 	= tf.matmul( self.ques_image, self.pre_op_w, name='pre_op_w') + self.pre_op_b
+		self.pre_op 	= tf.nn.relu( tf.matmul( self.ques_image, self.pre_op_w, name='pre_op_w') + self.pre_op_b )
 		self.ans_op 	= tf.matmul( self.pre_op, self.op_w ) + self.op_b
 		self.ans_op_prob = tf.nn.softmax( self.ans_op)
 
